@@ -84,7 +84,7 @@ def check_market():
         # Sort to find the absolute cheapest available
         valid_orders.sort(key=lambda x: x["platinum"])
         cheapest_order = valid_orders[0]
-        print(cheapest_order)
+        print(item, cheapest_order)
         
         price = cheapest_order["platinum"]
         order_id = cheapest_order["id"]
