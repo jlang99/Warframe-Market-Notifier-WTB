@@ -40,7 +40,7 @@ python gui.pyw
   - **Receiver Email:** The email address that will receive the alerts (can be the same as the sender).
 - **Adding Items:** 
   - **URL Name:** You must use the exact URL-formatted name from warframe.market. For example, if the URL is `https://warframe.market/items/rhino_prime_set`, the URL Name is `rhino_prime_set`.
-  - **Target Price:** The maximum amount of Platinum you are willing to pay.
+  - **Target Price:** The GUI will automatically query the market for the cheapest online sell order and ask you to confirm if you want to track the item at that price.
 
 ### 2. Running the Scraper
 Once your config is set up and saved, start the background scraper:

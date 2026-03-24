@@ -1,0 +1,19 @@
+{
+    "email": {
+        "sender": "",
+        "password": "",
+        "receiver": "",
+        "smtp_server": "smtp.gmail.com",
+        "smtp_port": 587
+    },
+    "items_to_track": [
+        {
+            "url_name": "ash_prime_systems",
+            "target_price": 2
+        },
+        {
+            "url_name": "nyx_prime_systems",
+            "target_price": 3
+        }
+    ]
+}

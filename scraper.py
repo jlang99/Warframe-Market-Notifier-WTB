@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+#Above is for linux distributions running in the main enovironment.
 # This file should run a server to be 24/7
 
 import time
@@ -47,13 +49,17 @@ def send_alert_email(config, item_name, price, seller_name, whisper_msg):
 
 def check_market():
     config = load_config()
+    print("Checking market...")
     
     for item in config["items_to_track"]:
+        # Respect the API rate limit of 3 requests per second
+        time.sleep(0.34)
+
         url_name = item["url_name"]
         target_price = item["target_price"]
         
         # Query the Warframe Market API
-        url = f"https://api.warframe.market/v1/items/{url_name}/orders"
+        url = f"https://api.warframe.market/v2/orders/item/{url_name}/top"
         headers = {"Language": "en", "Accept": "application/json"}
         
         try:
@@ -64,13 +70,12 @@ def check_market():
             continue
 
         data = response.json()
-        orders = data.get("payload", {}).get("orders", [])
+        sell_orders = data.get("data", {}).get("sell", [])
         
         # Filter for sell orders where user is "ingame" or "online"
         valid_orders = [
-            o for o in orders 
-            if o["order_type"] == "sell" 
-            and o["user"]["status"] in ["ingame", "online"]
+            o for o in sell_orders 
+            if o["user"]["status"] in ["ingame", "online"]
         ]
         
         if not valid_orders:

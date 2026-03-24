@@ -1,7 +1,11 @@
+#!/usr/bin/env python3
+#Above is for linux distributions running in the main enovironment.
+
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import json
 import os
+import requests
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -66,11 +70,7 @@ class ConfigGUI:
         self.url_name_var = tk.StringVar()
         ttk.Entry(add_frame, textvariable=self.url_name_var, width=25).grid(row=0, column=1, padx=5, pady=10)
         
-        ttk.Label(add_frame, text="Target Price:").grid(row=0, column=2, padx=5, pady=10)
-        self.price_var = tk.StringVar()
-        ttk.Entry(add_frame, textvariable=self.price_var, width=10).grid(row=0, column=3, padx=5, pady=10)
-        
-        ttk.Button(add_frame, text="Add Item", command=self.add_item).grid(row=0, column=4, padx=10, pady=10)
+        ttk.Button(add_frame, text="Add Item", command=self.add_item).grid(row=0, column=2, padx=10, pady=10)
         
         # Middle Frame: Scrollable List
         list_frame = ttk.LabelFrame(self.root, text="Currently Tracked Items")
@@ -94,20 +94,42 @@ class ConfigGUI:
         control_frame.pack(fill="x", padx=10, pady=10)
         
         ttk.Button(control_frame, text="Remove Selected", command=self.remove_item).pack(side="left")
+        ttk.Button(control_frame, text="Edit Price", command=self.edit_price).pack(side="left", padx=10)
         ttk.Button(control_frame, text="Email Settings", command=lambda: self.open_email_settings(force=False)).pack(side="right")
 
     def add_item(self):
         url_name = self.url_name_var.get().strip().lower() # Standardize inputs
-        price_str = self.price_var.get().strip()
         
-        if not url_name or not price_str:
-            messagebox.showerror("Error", "Both fields are required.")
+        if not url_name:
+            messagebox.showerror("Error", "URL Name is required.")
             return
             
         try:
-            price = int(price_str)
-        except ValueError:
-            messagebox.showerror("Error", "Target Price must be a whole number.")
+            # Query the Warframe Market API for the cheapest current order
+            url = f"https://api.warframe.market/v2/orders/item/{url_name}"
+            headers = {"Language": "en", "Accept": "application/json"}
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()
+            
+            data = response.json()
+        
+            orders = data.get("data", {})
+            print(orders[:5])
+            
+            if not orders:
+                messagebox.showerror("Error", f"No active sell orders found for '{url_name}'.")
+                return
+                
+            # Sort to find the absolute cheapest available
+            orders.sort(key=lambda x: x["platinum"])
+            price = int(orders[0]["platinum"])
+            
+            # Prompt user to confirm the price
+            if not messagebox.askyesno("Confirm Price", f"The current cheapest price for '{url_name}' is {price}p.\n\nWould you like to track this item at {price}p?"):
+                return
+                
+        except requests.exceptions.RequestException as e:
+            messagebox.showerror("Error", f"Failed to fetch data for '{url_name}':\n{e}")
             return
             
         # Update price if item already exists
@@ -117,7 +139,6 @@ class ConfigGUI:
                 self.save_config()
                 self.refresh_list()
                 self.url_name_var.set("")
-                self.price_var.set("")
                 return
         
         # Otherwise, append a new item
@@ -130,7 +151,6 @@ class ConfigGUI:
         
         # Clear inputs
         self.url_name_var.set("")
-        self.price_var.set("")
 
     def remove_item(self):
         selected = self.tree.selection()
@@ -146,6 +166,25 @@ class ConfigGUI:
         ]
         self.save_config()
         self.refresh_list()
+
+    def edit_price(self):
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select an item to edit.")
+            return
+            
+        item_values = self.tree.item(selected[0], "values")
+        url_name = item_values[0]
+        current_price = int(item_values[1])
+        
+        new_price = simpledialog.askinteger("Edit Price", f"Enter new target price for '{url_name}':", initialvalue=current_price, minvalue=1)
+        if new_price is not None:
+            for item in self.config["items_to_track"]:
+                if item["url_name"] == url_name:
+                    item["target_price"] = new_price
+                    break
+            self.save_config()
+            self.refresh_list()
 
     def refresh_list(self):
         # Clear existing items in the tree
