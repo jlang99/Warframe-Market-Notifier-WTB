@@ -84,10 +84,11 @@ def check_market():
         # Sort to find the absolute cheapest available
         valid_orders.sort(key=lambda x: x["platinum"])
         cheapest_order = valid_orders[0]
+        print(cheapest_order)
         
         price = cheapest_order["platinum"]
         order_id = cheapest_order["id"]
-        seller_name = cheapest_order["user"]["ingame_name"]
+        seller_name = cheapest_order["user"]["ingameName"]
         
         # Only alert if it meets our price target and hasn't been emailed yet
         if price <= target_price and order_id not in ALERTED_ORDERS:
@@ -105,5 +106,5 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"An unexpected error occurred: {e}")
         
-        # Wait 5 minutes between checks to avoid rate-limiting
-        time.sleep(300)
+        # Wait 1 minute between checks to avoid rate-limiting
+        time.sleep(60)
