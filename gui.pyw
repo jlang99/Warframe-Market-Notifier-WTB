@@ -6,6 +6,7 @@ from tkinter import ttk, messagebox, simpledialog
 import json
 import os
 import requests
+from datetime import datetime, timezone
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
@@ -95,15 +96,10 @@ class ConfigGUI:
         
         ttk.Button(control_frame, text="Remove Selected", command=self.remove_item).pack(side="left")
         ttk.Button(control_frame, text="Edit Price", command=self.edit_price).pack(side="left", padx=10)
+        ttk.Button(control_frame, text="Research Price", command=self.research_price).pack(side="left")
         ttk.Button(control_frame, text="Email Settings", command=lambda: self.open_email_settings(force=False)).pack(side="right")
 
-    def add_item(self):
-        url_name = self.url_name_var.get().strip().lower() # Standardize inputs
-        
-        if not url_name:
-            messagebox.showerror("Error", "URL Name is required.")
-            return
-            
+    def _fetch_and_prompt_price(self, url_name):
         try:
             # Query the Warframe Market API for the cheapest current order
             url = f"https://api.warframe.market/v2/orders/item/{url_name}"
@@ -113,25 +109,140 @@ class ConfigGUI:
             
             data = response.json()
         
-            orders = data.get("data", {})
-            print(orders[:5])
+            orders = data.get("data", [])
+            if isinstance(orders, dict):
+                sell_orders = orders.get("sell", [])
+            else:
+                sell_orders = [o for o in orders if o.get("type") == "sell"]
             
-            if not orders:
+            if not sell_orders:
                 messagebox.showerror("Error", f"No active sell orders found for '{url_name}'.")
-                return
+                return None
                 
-            # Sort to find the absolute cheapest available
-            orders.sort(key=lambda x: x["platinum"])
-            price = int(orders[0]["platinum"])
+            def parse_date(date_str):
+                if not date_str:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+                try:
+                    base_str = date_str.split('.')[0].split('+')[0]
+                    if base_str.endswith('Z'):
+                        base_str = base_str[:-1]
+                    return datetime.strptime(base_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+                except Exception:
+                    return datetime.min.replace(tzinfo=timezone.utc)
+
+            now = datetime.now(timezone.utc)
             
-            # Prompt user to confirm the price
-            if not messagebox.askyesno("Confirm Price", f"The current cheapest price for '{url_name}' is {price}p.\n\nWould you like to track this item at {price}p?"):
-                return
+            # Sort to find the absolute cheapest available
+            sell_orders.sort(key=lambda x: x["platinum"])
+            
+            cheapest_any = sell_orders[0]
+            cheapest_7d = None
+            cheapest_24h = None
+            cheapest_now = None
+            
+            for o in sell_orders:
+                status = o.get("user", {}).get("status", "offline")
+                last_seen_str = o.get("user", {}).get("lastSeen", "")
+                last_seen = parse_date(last_seen_str)
+                
+                # Check currently online
+                if status in ["ingame", "online"]:
+                    if cheapest_now is None:
+                        cheapest_now = o
+                
+                # Check within 24 hours
+                if (now - last_seen).total_seconds() <= 86400 or status in ["ingame", "online"]:
+                    if cheapest_24h is None:
+                        cheapest_24h = o
+                        
+                # Check within 7 days
+                if (now - last_seen).total_seconds() <= 604800 or status in ["ingame", "online"]:
+                    if cheapest_7d is None:
+                        cheapest_7d = o
+            
+            options = []
+            
+            if cheapest_any:
+                print(cheapest_any)
+                last_seen_str = cheapest_any.get("user", {}).get("lastSeen", "")
+                print(last_seen_str)
+                ls_date = parse_date(last_seen_str)
+                ls_display = ls_date.strftime("%Y-%m-%d %H:%M UTC") if ls_date != datetime.min.replace(tzinfo=timezone.utc) else "Unknown"
+                options.append({
+                    "label": f"Absolute cheapest: {cheapest_any['platinum']}p (Last online: {ls_display})",
+                    "price": int(cheapest_any['platinum'])
+                })
+            
+            if cheapest_7d:
+                options.append({
+                    "label": f"Cheapest (online within 7 days): {cheapest_7d['platinum']}p",
+                    "price": int(cheapest_7d['platinum'])
+                })
+                
+            if cheapest_24h:
+                options.append({
+                    "label": f"Cheapest (online within 24 hours): {cheapest_24h['platinum']}p",
+                    "price": int(cheapest_24h['platinum'])
+                })
+                
+            if cheapest_now:
+                options.append({
+                    "label": f"Cheapest (currently online): {cheapest_now['platinum']}p",
+                    "price": int(cheapest_now['platinum'])
+                })
+            
+            dialog = tk.Toplevel(self.root)
+            dialog.title("Select Target Price")
+            dialog.geometry("450x250")
+            dialog.transient(self.root)
+            dialog.grab_set()
+            
+            ttk.Label(dialog, text=f"Select the target price for '{url_name}':").pack(pady=10)
+            
+            selected_price = tk.IntVar()
+            if options:
+                selected_price.set(options[0]["price"])
+                
+            frame = ttk.Frame(dialog)
+            frame.pack(fill="both", expand=True, padx=20)
+            
+            for opt in options:
+                ttk.Radiobutton(frame, text=opt["label"], variable=selected_price, value=opt["price"]).pack(anchor="w", pady=5)
+                
+            result = {"price": None}
+            
+            def on_confirm():
+                result["price"] = selected_price.get()
+                dialog.destroy()
+                
+            def on_cancel():
+                dialog.destroy()
+                
+            btn_frame = ttk.Frame(dialog)
+            btn_frame.pack(pady=10)
+            
+            ttk.Button(btn_frame, text="Confirm", command=on_confirm).pack(side="left", padx=5)
+            ttk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side="left", padx=5)
+            
+            self.root.wait_window(dialog)
+            
+            return result["price"]
                 
         except requests.exceptions.RequestException as e:
             messagebox.showerror("Error", f"Failed to fetch data for '{url_name}':\n{e}")
+            return None
+
+    def add_item(self):
+        url_name = self.url_name_var.get().strip().lower() # Standardize inputs
+        
+        if not url_name:
+            messagebox.showerror("Error", "URL Name is required.")
             return
             
+        price = self._fetch_and_prompt_price(url_name)
+        if price is None:
+            return
+
         # Update price if item already exists
         for item in self.config["items_to_track"]:
             if item["url_name"] == url_name:
@@ -182,6 +293,24 @@ class ConfigGUI:
             for item in self.config["items_to_track"]:
                 if item["url_name"] == url_name:
                     item["target_price"] = new_price
+                    break
+            self.save_config()
+            self.refresh_list()
+
+    def research_price(self):
+        selected = self.tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select an item to research.")
+            return
+            
+        item_values = self.tree.item(selected[0], "values")
+        url_name = item_values[0]
+        
+        price = self._fetch_and_prompt_price(url_name)
+        if price is not None:
+            for item in self.config["items_to_track"]:
+                if item["url_name"] == url_name:
+                    item["target_price"] = price
                     break
             self.save_config()
             self.refresh_list()
