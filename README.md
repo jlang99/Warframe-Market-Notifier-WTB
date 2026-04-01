@@ -61,3 +61,4 @@ The script will print "Warframe Market Scraper starting..." and begin checking t
 
 ## Disclaimer
 This project is not affiliated with Digital Extremes or warframe.market. Please use it responsibly and respect API rate limits.
+I built this project for myself to avoid having to farm Railjack relics for Nyx, Valkyr, and Ash in my quest to acquire all Warframes. Hope this helps the WF community, Happy Hunting Tenno!
