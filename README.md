@@ -15,6 +15,8 @@ The application includes a user-friendly GUI to manage your tracked items and em
 - Python 3.6 or higher
 - `requests` library
 
+- I personally run this easily on a 1gb Raspberry Pi 4
+
 ## Installation
 1. Clone or download this repository to your local machine.
 2. Open a terminal or command prompt in the project folder.
