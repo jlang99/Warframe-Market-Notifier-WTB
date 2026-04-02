@@ -38,8 +38,10 @@ python gui.pyw
 
 - **Email Settings:** On first launch, you will be prompted to enter your email settings. 
   - **Sender Email:** The email address sending the alerts.
-  - **App Password:** If you are using Gmail, you cannot use your standard password. You must generate an **App Password** in your Google Account settings (Security > 2-Step Verification > App Passwords).
+  - **App Password:** If you are using Gmail, you cannot use your standard password. You must generate an **App Password** in your Google Account settings (Security > 2-Step Verification > App Passwords). 
+        - **Note:** I only know how to do this with Gmail accounts, so other email services may have an entirely different atuhentication protocol and therfore may not work with this script.
   - **Receiver Email:** The email address that will receive the alerts (can be the same as the sender).
+- **Discord Setup:** Alternatively to using the Email notifications, if you are admin of a discord server or create a personal server you can create a webhook url in the discord server settings and paste that into the gui file and select discord as the notification method.
 - **Adding Items:** 
   - **URL Name:** You must use the exact URL-formatted name from warframe.market. For example, if the URL is `https://warframe.market/items/rhino_prime_set`, the URL Name is `rhino_prime_set`.
   - **Target Price:** The GUI will automatically query the market for the cheapest online sell order and ask you to confirm if you want to track the item at that price.
