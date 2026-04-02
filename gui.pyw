@@ -13,6 +13,10 @@ CONFIG_PATH = os.path.join(BASE_DIR, "config.json")
 ICON_PATH = os.path.join(BASE_DIR, "icon.png")
 
 DEFAULT_CONFIG = {
+    "notification_method": "email",
+    "discord": {
+        "webhook_url": ""
+    },
     "email": {
         "sender": "",
         "password": "",
@@ -41,9 +45,12 @@ class ConfigGUI:
         self.build_ui()
         self.refresh_list()
         
-        # Prompt for email setup on startup if it's missing
-        if not self.config["email"]["sender"] or not self.config["email"]["password"]:
-            self.open_email_settings(force=True)
+        # Prompt for notification setup on startup if it's missing
+        notif_method = self.config.get("notification_method", "email")
+        if notif_method == "email" and (not self.config.get("email", {}).get("sender") or not self.config.get("email", {}).get("password")):
+            self.open_notification_settings(force=True)
+        elif notif_method == "discord" and not self.config.get("discord", {}).get("webhook_url"):
+            self.open_notification_settings(force=True)
             
     def load_config(self):
         if not os.path.exists(CONFIG_PATH):
@@ -54,7 +61,13 @@ class ConfigGUI:
         else:
             with open(CONFIG_PATH, "r") as f:
                 try:
-                    return json.load(f)
+                    config = json.load(f)
+                    # Ensure new keys exist for backward compatibility
+                    if "notification_method" not in config:
+                        config["notification_method"] = "email"
+                    if "discord" not in config:
+                        config["discord"] = {"webhook_url": ""}
+                    return config
                 except json.JSONDecodeError:
                     return DEFAULT_CONFIG.copy()
 
@@ -97,7 +110,7 @@ class ConfigGUI:
         ttk.Button(control_frame, text="Remove Selected", command=self.remove_item).pack(side="left")
         ttk.Button(control_frame, text="Edit Price", command=self.edit_price).pack(side="left", padx=10)
         ttk.Button(control_frame, text="Research Price", command=self.research_price).pack(side="left")
-        ttk.Button(control_frame, text="Email Settings", command=lambda: self.open_email_settings(force=False)).pack(side="right")
+        ttk.Button(control_frame, text="Notification Settings", command=lambda: self.open_notification_settings(force=False)).pack(side="right")
 
     def _fetch_and_prompt_price(self, url_name):
         try:
@@ -324,35 +337,64 @@ class ConfigGUI:
         for item in self.config["items_to_track"]:
             self.tree.insert("", "end", values=(item["url_name"], item["target_price"]))
 
-    def open_email_settings(self, force=False):
+    def open_notification_settings(self, force=False):
         top = tk.Toplevel(self.root)
-        top.title("Email Settings")
-        top.geometry("380x250")
+        top.title("Notification Settings")
+        top.geometry("450x400")
         
         if force:
             # Prompts the user to interact with this window before continuing
             top.grab_set() 
             
-        ttk.Label(top, text="Sender Email:").grid(row=0, column=0, padx=10, pady=15, sticky="e")
-        sender_var = tk.StringVar(value=self.config["email"].get("sender", ""))
-        ttk.Entry(top, textvariable=sender_var, width=30).grid(row=0, column=1)
+        method_var = tk.StringVar(value=self.config.get("notification_method", "email"))
         
-        ttk.Label(top, text="App Password:").grid(row=1, column=0, padx=10, pady=15, sticky="e")
-        pass_var = tk.StringVar(value=self.config["email"].get("password", ""))
-        ttk.Entry(top, textvariable=pass_var, show="*", width=30).grid(row=1, column=1)
+        # Notification Method Selection
+        method_frame = ttk.LabelFrame(top, text="Notification Method")
+        method_frame.pack(fill="x", padx=10, pady=5)
+        ttk.Radiobutton(method_frame, text="Email", variable=method_var, value="email").pack(side="left", padx=10, pady=5)
+        ttk.Radiobutton(method_frame, text="Discord Webhook", variable=method_var, value="discord").pack(side="left", padx=10, pady=5)
         
-        ttk.Label(top, text="Receiver Email:").grid(row=2, column=0, padx=10, pady=15, sticky="e")
-        recv_var = tk.StringVar(value=self.config["email"].get("receiver", ""))
-        ttk.Entry(top, textvariable=recv_var, width=30).grid(row=2, column=1)
+        # Email Setup Frame
+        email_frame = ttk.LabelFrame(top, text="Email Settings")
+        email_frame.pack(fill="x", padx=10, pady=5)
         
-        def save_email():
+        ttk.Label(email_frame, text="Sender Email:").grid(row=0, column=0, padx=10, pady=5, sticky="e")
+        sender_var = tk.StringVar(value=self.config.get("email", {}).get("sender", ""))
+        ttk.Entry(email_frame, textvariable=sender_var, width=35).grid(row=0, column=1)
+        
+        ttk.Label(email_frame, text="App Password:").grid(row=1, column=0, padx=10, pady=5, sticky="e")
+        pass_var = tk.StringVar(value=self.config.get("email", {}).get("password", ""))
+        ttk.Entry(email_frame, textvariable=pass_var, show="*", width=35).grid(row=1, column=1)
+        
+        ttk.Label(email_frame, text="Receiver Email:").grid(row=2, column=0, padx=10, pady=5, sticky="e")
+        recv_var = tk.StringVar(value=self.config.get("email", {}).get("receiver", ""))
+        ttk.Entry(email_frame, textvariable=recv_var, width=35).grid(row=2, column=1)
+        
+        # Discord Setup Frame
+        discord_frame = ttk.LabelFrame(top, text="Discord Settings")
+        discord_frame.pack(fill="x", padx=10, pady=5)
+        
+        ttk.Label(discord_frame, text="Webhook URL:").grid(row=0, column=0, padx=10, pady=10, sticky="e")
+        webhook_var = tk.StringVar(value=self.config.get("discord", {}).get("webhook_url", ""))
+        ttk.Entry(discord_frame, textvariable=webhook_var, width=35).grid(row=0, column=1)
+        
+        def save_settings():
+            self.config["notification_method"] = method_var.get()
+            
+            if "email" not in self.config:
+                self.config["email"] = {}
             self.config["email"]["sender"] = sender_var.get().strip()
             self.config["email"]["password"] = pass_var.get().strip()
             self.config["email"]["receiver"] = recv_var.get().strip()
+            
+            if "discord" not in self.config:
+                self.config["discord"] = {}
+            self.config["discord"]["webhook_url"] = webhook_var.get().strip()
+            
             self.save_config()
             top.destroy()
             
-        ttk.Button(top, text="Save Settings", command=save_email).grid(row=3, column=0, columnspan=2, pady=15)
+        ttk.Button(top, text="Save Settings", command=save_settings).pack(pady=10)
 
 if __name__ == "__main__":
     root = tk.Tk()

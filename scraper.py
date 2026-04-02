@@ -47,6 +47,32 @@ def send_alert_email(config, item_name, price, seller_name, whisper_msg):
     except Exception as e:
         print(f"Failed to send email: {e}")
 
+def send_discord_alert(config, item_name, price, seller_name, whisper_msg):
+    webhook_url = config.get("discord", {}).get("webhook_url")
+    if not webhook_url:
+        print("Discord webhook URL is not configured.")
+        return
+
+    payload = {
+        "content": f"**WF Market Alert:** {item_name} for {price}p",
+        "embeds": [{
+            "title": item_name,
+            "color": 3447003, # Deep Discord Blue
+            "fields": [
+                {"name": "Price", "value": f"{price} platinum", "inline": True},
+                {"name": "Seller", "value": seller_name, "inline": True},
+                {"name": "Copy/Paste in-game", "value": f"```{whisper_msg}```", "inline": False}
+            ]
+        }]
+    }
+    
+    try:
+        response = requests.post(webhook_url, json=payload)
+        response.raise_for_status()
+        print(f"Discord alert sent for {item_name} at {price}p!")
+    except Exception as e:
+        print(f"Failed to send Discord alert: {e}")
+
 def check_market():
     config = load_config()
     print("Checking market...")
@@ -95,7 +121,12 @@ def check_market():
             display_name = url_name.replace("_", " ").title()
             whisper_msg = f'/w {seller_name} Hi! I want to buy: "{display_name}" for {price} platinum. (warframe.market)'
             
-            send_alert_email(config, display_name, price, seller_name, whisper_msg)
+            notif_method = config.get("notification_method", "email")
+            if notif_method == "discord":
+                send_discord_alert(config, display_name, price, seller_name, whisper_msg)
+            else:
+                send_alert_email(config, display_name, price, seller_name, whisper_msg)
+                
             ALERTED_ORDERS.add(order_id)
 
 if __name__ == "__main__":
