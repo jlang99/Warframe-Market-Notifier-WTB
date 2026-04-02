@@ -15,6 +15,8 @@ The application includes a user-friendly GUI to manage your tracked items and em
 - Python 3.6 or higher
 - `requests` library
 
+- I personally run this easily on a 1gb Raspberry Pi 4
+
 ## Installation
 1. Clone or download this repository to your local machine.
 2. Open a terminal or command prompt in the project folder.
@@ -61,3 +63,4 @@ The script will print "Warframe Market Scraper starting..." and begin checking t
 
 ## Disclaimer
 This project is not affiliated with Digital Extremes or warframe.market. Please use it responsibly and respect API rate limits.
+I built this project for myself to avoid having to farm Railjack relics for Nyx, Valkyr, and Ash in my quest to acquire all Warframes. Hope this helps the WF community, Happy Hunting Tenno!
