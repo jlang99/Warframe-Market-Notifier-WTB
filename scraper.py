@@ -114,7 +114,7 @@ def check_market():
         price = cheapest_order["platinum"]
         order_id = cheapest_order["id"]
         seller_name = cheapest_order["user"]["ingameName"]
-        print(f"{order_id} | {seller_name} | Platinum: {price} | Target: {target_price}\nLast Seen:{cheapest_order['lastSeen']}")
+        print(f"{url_name} | {seller_name} | Platinum: {price} | Target: {target_price}\nLast Seen:{cheapest_order['user']['lastSeen']}")
 
 
         # Only alert if it meets our price target and hasn't been emailed yet
