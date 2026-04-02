@@ -110,12 +110,13 @@ def check_market():
         # Sort to find the absolute cheapest available
         valid_orders.sort(key=lambda x: x["platinum"])
         cheapest_order = valid_orders[0]
-        print(item, cheapest_order)
         
         price = cheapest_order["platinum"]
         order_id = cheapest_order["id"]
         seller_name = cheapest_order["user"]["ingameName"]
-        
+        print(f"{order_id} | {seller_name} | Platinum: {price} | Target: {target_price}\nLast Seen:{cheapest_order['lastSeen']}")
+
+
         # Only alert if it meets our price target and hasn't been emailed yet
         if price <= target_price and order_id not in ALERTED_ORDERS:
             display_name = url_name.replace("_", " ").title()
